@@ -1,4 +1,3 @@
-
 import random
 
 import pandas as pd
@@ -6,6 +5,7 @@ pd.set_option('display.max_colwidth', -1)
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 sns.set(color_codes=True)
 
 from sklearn import metrics
@@ -15,9 +15,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 from sklearn.model_selection import cross_validate
 from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 import xgboost
 
+import rse
 
+import warnings
+warnings.filterwarnings("ignore")
+
+verbose = False
+
+print("Predictor solo con especies competidoras")
+print("========================================")
 individuals_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
 #individuals_test = pd.read_csv('datasets/competition_merged_dataset_2019.csv', sep=',')
 
@@ -52,20 +62,25 @@ individuals_train[['species']] = le.transform(individuals_train[['species']])
 #le.fit(individuals_test[['species']])
 #individuals_test[['species']] = le.transform(individuals_test[['species']])
 
-
-print(individuals_train.dtypes)
+if verbose:
+    print(individuals_train.dtypes)
 
 "Ver si hay registros duplicados"
 
+if verbose:
+    print("Ver si hay registros duplicados")
 num_rows = len(individuals_train)
 num_cols = len(individuals_train.columns)
 
 individuals_train = individuals_train.drop_duplicates()
 num_rows_clean = len(individuals_train)
-print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
+if verbose:
+    print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
 
 
 "Estudiar qué variables toman siempre el mismo valor"
+if verbose:
+    print("Estudiar qué variables toman siempre el mismo valor")
 
 variables_numericas = [index for index, value in zip(individuals_train.dtypes.index, individuals_train.dtypes.values) 
                        if str(value) != 'object']
@@ -80,7 +95,8 @@ for variable, variance, unique_values in zip(variables_numericas, variances, uni
     data.append([variable, variance, unique_values])
     
 variance_study = pd.DataFrame(data, columns=['variable', 'variance', 'unique_values']).sort_values(['unique_values','variance'], ascending=[True, True])
-print(variance_study)
+if verbose:
+    print(variance_study)
 
 columns_to_delete = variance_study[variance_study.variance < 0.1].variable.tolist()
 
@@ -88,6 +104,8 @@ individuals_train.drop(columns_to_delete, axis=1, inplace=True)
 #individuals_test.drop(columns_to_delete, axis=1, inplace=True)
 
 "Estudio de valores nulos"
+if verbose:
+    print("Estudio de valores nulos")
 
 num_rows = len(individuals_train)
 nulls_info = []
@@ -101,17 +119,18 @@ nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls'
 nulls_info_df
 
 "Estudio de correlaciones"
+if verbose:
+    print("Estudio de correlaciones")
 
 variables_to_ignore = ['individuals']
 variables_study = [element for element in list(individuals_train) if element not in variables_to_ignore]
 
 correlation_matrix = individuals_train[variables_study].corr(method='spearman')
 
-figure_size = (18, 14)
-fig, ax = plt.subplots(figsize=figure_size)
-
-sns.heatmap(correlation_matrix, xticklabels=list(correlation_matrix), yticklabels=list(correlation_matrix),
-            annot=True, fmt='.1f', linewidths = 0.5, ax=ax)
+#figure_size = (18, 14)
+#fig, ax = plt.subplots(figsize=figure_size)
+#sns.heatmap(correlation_matrix, xticklabels=list(correlation_matrix), yticklabels=list(correlation_matrix),
+#            annot=True, fmt='.1f', linewidths = 0.5, ax=ax)
 
 num_variables = len(correlation_matrix)
 correlation_value = 0.7
@@ -149,7 +168,8 @@ individuals_train.drop(columns_to_delete_correlation_target, axis=1, inplace=Tru
 
 num_rows = len(individuals_train)
 num_cols = len(individuals_train.columns)
-print("This dataset has {0} records and {1} columns".format(num_rows, num_cols))
+if verbose:
+    print("This dataset has {0} records and {1} columns".format(num_rows, num_cols))
 
 "Feature Importance"
 
@@ -224,14 +244,21 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 
 "ElasticNet"
 
+print("ElasticNet")
 elastic_model = ElasticNet(random_state=0)
 elastic_model.fit(X_train,y_train)
 predictions_elastic = elastic_model.predict(X_test)
 
+mse_elastic = mean_squared_error(y_test,predictions_elastic)
+rmse_elastic = math.sqrt(mse_elastic/len(y_test))
+rse_elastic = rse.calc_rse(y_test,mse_elastic)
 rmse_elastic = np.sqrt(metrics.mean_squared_error(y_test, predictions_elastic))
+
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_elastic,rmse_elastic,rse_elastic))
 
 "Random Forest"
 
+print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
 rf = RandomForestRegressor(random_state= seed_value)
@@ -241,15 +268,22 @@ cross_val_rf = GridSearchCV(rf, param_grid, cv = 5)
 cross_val_rf.fit(X_train,y_train)
 predictions_rf = cross_val_rf.predict(X_test)
 
-rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
+mse_rf = mean_squared_error(y_test,predictions_rf)
+rmse_rf = math.sqrt(mse_rf/len(y_test))
+rse_rf = rse.calc_rse(y_test,mse_rf)
+
+#rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
 
 best_result_rf = cross_val_rf.best_params_
 
 (print("The best random forest has a max_features value of {0} and n_estimators of {1}."
        .format( best_result_rf['max_features'], best_result_rf['n_estimators'])))
 
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf,rse_rf))
+
 
 "Gradient Boosting Trees"
+print("Gradient Boosting Trees")
 
 gbt = GradientBoostingRegressor(random_state= seed_value)
 
@@ -258,20 +292,26 @@ cross_val_gbt = GridSearchCV(gbt, param_grid, cv = 5)
 cross_val_gbt.fit(X_train,y_train)
 predictions_gbt = cross_val_gbt.predict(X_test)
 
-rmse_gbt = np.sqrt(metrics.mean_squared_error(y_test, predictions_gbt))
+mse_gbt = mean_squared_error(y_test,predictions_gbt)
+rmse_gbt = math.sqrt(mse_gbt/len(y_test))
+rse_gbt = rse.calc_rse(y_test,mse_gbt)
+
+#rmse_gbt = np.sqrt(metrics.mean_squared_error(y_test, predictions_gbt))
 
 best_result_gbt = cross_val_gbt.best_params_
 
 (print("The best gbt has a n_estimators value of {0}, max_depth of {1} and learning_rate of {2}."
        .format( best_result_gbt['n_estimators'], best_result_gbt['max_depth'], best_result_gbt['learning_rate'])))
 
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_gbt,rmse_gbt,rse_gbt))
+print()
 
 "XGBoost"
 
 
 # parameters_for_testing = {
 #     'colsample_bytree':[0.8],
-#     'gamma':[0,0.03,0.1,0.3],
+#     'gamma':[0,0.03,0.1,0.4],
 #     'min_child_weight':[1.5,6,10],
 #     'learning_rate':[0.1,0.07],
 #     'max_depth':[3,5],
@@ -291,22 +331,24 @@ best_result_gbt = cross_val_gbt.best_params_
 # predictions_xgbsearch = gsearch1.predict(X_test)
 # rmse_xgbsearch = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgbsearch))
 
-xgb = xgboost.XGBRegressor(colsample_bytree=0.8,
-                 gamma=0.1,                 
-                 learning_rate=0.07,
-                 max_depth=5,
-                 min_child_weight=10,
-                 n_estimators=1000,                                                                    
-                 reg_alpha=0.75,
-                 reg_lambda=0.45,
-                 subsample=0.6,
-                 seed=42) 
 
 
-xgb.fit(X_train,y_train)
-predictions_xgb = xgb.predict(X_test)
-
-rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
+#xgb = xgboost.XGBRegressor(colsample_bytree=0.8,
+#                 gamma=0.1,                 
+#                 learning_rate=0.07,
+#                 max_depth=5,
+#                 min_child_weight=10,
+#                 n_estimators=1000,                                                                    
+#                 reg_alpha=0.75,
+#                 reg_lambda=0.45,
+#                 subsample=0.6,
+#                 seed=42) 
+#
+#
+#xgb.fit(X_train,y_train)
+#predictions_xgb = xgb.predict(X_test)
+#
+#rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
 
 
 

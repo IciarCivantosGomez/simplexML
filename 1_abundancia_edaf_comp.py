@@ -15,8 +15,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 from sklearn.model_selection import cross_validate
 from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 import xgboost
+import rse
+verbose = False
 
+print("Estimacion con competidores y parametros medioambientales")
+print("=========================================================")
 
 environment_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
 competitors_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
@@ -61,8 +67,8 @@ individuals_train[['subplot']] = le.transform(individuals_train[['subplot']])
 le = LabelEncoder()
 le.fit(individuals_train[['present']])
 individuals_train[['present']] = le.transform(individuals_train[['present']])
-
-print(individuals_train.dtypes)
+if verbose:
+    print(individuals_train.dtypes)
 
 "Ver si hay registros duplicados"
 
@@ -71,7 +77,8 @@ num_cols = len(individuals_train.columns)
 
 individuals_train = individuals_train.drop_duplicates()
 num_rows_clean = len(individuals_train)
-print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
+if (verbose):
+    print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
 
 
 "Estudiar qué variables toman siempre el mismo valor"
@@ -89,7 +96,8 @@ for variable, variance, unique_values in zip(variables_numericas, variances, uni
     data.append([variable, variance, unique_values])
     
 variance_study = pd.DataFrame(data, columns=['variable', 'variance', 'unique_values']).sort_values(['unique_values','variance'], ascending=[True, True])
-print(variance_study)
+if (verbose):
+    print(variance_study)
 
 columns_to_delete = variance_study[variance_study.variance < 0.1].variable.tolist()
 
@@ -107,7 +115,7 @@ for column in list(individuals_train):
     
 nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls']).sort_values('percentage_nulls',ascending=False)
 nulls_info_df
-
+'''
 "Estudio de correlaciones"
 
 variables_to_ignore = ['individuals']
@@ -157,6 +165,7 @@ individuals_train.drop(columns_to_delete_correlation_target, axis=1, inplace=Tru
 num_rows = len(individuals_train)
 num_cols = len(individuals_train.columns)
 print("This dataset has {0} records and {1} columns".format(num_rows, num_cols))
+'''
 
 "Feature Importance"
 
@@ -166,6 +175,7 @@ X['random_noise'] = np.random.normal(size=X.shape[0])
 y = individuals_train['individuals']
 
 # RF K-Fold train
+print("RF K-Fold train")
 classifier = RandomForestRegressor(n_jobs=-1)
 cv = cross_validate(estimator=classifier, X=X, y=y, cv=5,return_estimator=True)
 
@@ -216,6 +226,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 
 "Random Forest"
 
+print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
 rf = RandomForestRegressor(random_state= seed_value)
@@ -227,6 +238,14 @@ predictions_rf = cross_val_rf.predict(X_test)
 
 rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
 
+mse_rf = mean_squared_error(y_test,predictions_rf)
+rse_rf = rse.calc_rse(y_test,mse_rf)
+
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf,rse_rf))
+
+
+
+
 best_result_rf = cross_val_rf.best_params_
 
 (print("The best random forest has a max_features value of {0} and n_estimators of {1}."
@@ -234,6 +253,7 @@ best_result_rf = cross_val_rf.best_params_
 
 
 "Gradient Boosting Trees"
+print("Gradient Boost")
 
 gbt = GradientBoostingRegressor(random_state= seed_value)
 
@@ -244,30 +264,38 @@ predictions_gbt = cross_val_gbt.predict(X_test)
 
 rmse_gbt = np.sqrt(metrics.mean_squared_error(y_test, predictions_gbt))
 
+mse_gbt = mean_squared_error(y_test,predictions_gbt)
+rse_gbt = rse.calc_rse(y_test,mse_gbt)
+
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_gbt,rmse_gbt,rse_gbt))
+
 best_result_gbt = cross_val_gbt.best_params_
 
 (print("The best gbt has a n_estimators value of {0}, max_depth of {1} and learning_rate of {2}."
        .format( best_result_gbt['n_estimators'], best_result_gbt['max_depth'], best_result_gbt['learning_rate'])))
 
 
+print()
+
 "XGBoost"
 
-xgb = xgboost.XGBRegressor(colsample_bytree=0.8,
-                 gamma=0.1,                 
-                 learning_rate=0.07,
-                 max_depth=5,
-                 min_child_weight=10,
-                 n_estimators=1000,                                                                    
-                 reg_alpha=0.75,
-                 reg_lambda=0.45,
-                 subsample=0.6,
-                 seed=42) 
 
-
-xgb.fit(X_train,y_train)
-predictions_xgb = xgb.predict(X_test)
-
-rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
-
-
+#xgb = xgboost.XGBRegressor(colsample_bytree=0.8,
+#                 gamma=0.1,                 
+#                 learning_rate=0.07,
+#                 max_depth=5,
+#                 min_child_weight=10,
+#                 n_estimators=1000,                                                                    
+#                 reg_alpha=0.75,
+#                 reg_lambda=0.45,
+#                 subsample=0.6,
+#                 seed=42) 
+#
+#
+#xgb.fit(X_train,y_train)
+#predictions_xgb = xgb.predict(X_test)
+#
+#rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
+#
+#
 
