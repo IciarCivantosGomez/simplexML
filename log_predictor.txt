@@ -1,3 +1,16 @@
+Solo variables medioambientales y con las features correctas
+==============================================================
+Elastic Net
+mse 1621.5499 rmse 40.2685 rse 0.9787
+Random Forest
+mse 217.5935 rmse 14.7510 rse 0.1313
+The best random forest has a max_features value of auto and n_estimators of 100.
+Gradient Boosting Trees
+
+
+
+
+
 Estimacion con competidores y parametros medioambientales
 =========================================================
 This dataset has 37260 rows and 49 columns
