@@ -128,6 +128,8 @@ y_predictions = pd.DataFrame.from_dict(y_pred)
 X_individuals = new_X.join(y_predictions).drop(['index'], axis = 1)
 y_individuals = conditions[features_to_pred].iloc[29808::]
 
+# Anyadido JGA para que el modelo tenga las mismas features que en AzureML
+X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
 
 X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_individuals, y_individuals, train_size= 0.8)
 

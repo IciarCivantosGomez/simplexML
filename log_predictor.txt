@@ -1,90 +1,79 @@
-Solo variables medioambientales y con las features correctas
-==============================================================
-Elastic Net
-mse 1621.5499 rmse 40.2685 rse 0.9787
-Random Forest
-mse 217.5935 rmse 14.7510 rse 0.1313
-The best random forest has a max_features value of auto and n_estimators of 100.
-Gradient Boosting Trees
-
-
-
-
-
 Estimacion con competidores y parametros medioambientales
 =========================================================
 This dataset has 37260 rows and 49 columns
 RF K-Fold train
 Random Forest
-mse 154.0885 rmse 12.4132 rse 0.0961
+mse 170.9019 rmse 13.0729 rse 0.1213
 The best random forest has a max_features value of auto and n_estimators of 150.
 Gradient Boost
-mse 153.3130 rmse 12.3820 rse 0.0956
-The best gbt has a n_estimators value of 250, max_depth of 7 and learning_rate of 0.1.
+mse 169.3223 rmse 13.0124 rse 0.1202
+The best gbt has a n_estimators value of 250, max_depth of 8 and learning_rate of 0.1.
 
 Estimacion solo con parametros medioambientales
 ===============================================
 This dataset has 37260 rows and 26 columns
+Elastic Net
+mse 1608.2160 rmse 40.1026 rse 0.9804
 Random Forest
-mse 113.4189 rmse 10.6498 rse 0.0805
+mse 206.4510 rmse 14.3684 rse 0.1259
 The best random forest has a max_features value of auto and n_estimators of 150.
 Gradient Boosting Trees
-mse 130.9768 rmse 11.4445 rse 0.0930
+mse 228.1073 rmse 15.1032 rse 0.1391
 The best gbt has a n_estimators value of 150, max_depth of 8 and learning_rate of 0.1.
 
 Predictor solo con especies competidoras
 ========================================
 This dataset has 37260 rows and 27 columns
 ElasticNet
-mse 1300.2059 rmse 36.0584 rse 0.8670
+mse 1457.8407 rmse 38.1817 rse 0.9292
 Random Forest
-The best random forest has a max_features value of auto and n_estimators of 150.
-mse 134.1590 rmse 0.1342 rse 0.0895
+The best random forest has a max_features value of log2 and n_estimators of 150.
+mse 197.0779 rmse 0.1626 rse 0.1256
 Gradient Boosting Trees
-The best gbt has a n_estimators value of 250, max_depth of 8 and learning_rate of 0.1.
-mse 124.6062 rmse 0.1293 rse 0.0831
+The best gbt has a n_estimators value of 250, max_depth of 7 and learning_rate of 0.1.
+mse 216.4818 rmse 0.1704 rse 0.1380
 
 Predictor en dos pasos
 ======================
 This dataset has 37260 rows and 49 columns
 --------------TARGET BEMA
-mse 0.0002 rmse 0.0125 rse 0.0000
+mse 0.0001 rmse 0.0118 rse 0.0000
 --------------TARGET CETE
-mse 0.0168 rmse 0.1296 rse 0.0005
+mse 0.0135 rmse 0.1161 rse 0.0004
 --------------TARGET CHFU
-mse 0.0455 rmse 0.2134 rse 0.0001
+mse 0.1229 rmse 0.3505 rse 0.0003
 --------------TARGET CHMI
-mse 0.0348 rmse 0.1865 rse 0.0009
+mse 0.0250 rmse 0.1582 rse 0.0007
 --------------TARGET COSQ
-mse 0.0001 rmse 0.0104 rse 0.0003
+mse 0.0000 rmse 0.0069 rse 0.0001
 --------------TARGET FRPU
-mse 0.0005 rmse 0.0218 rse 0.0061
+mse 0.0012 rmse 0.0344 rse 0.0154
 --------------TARGET HOMA
-mse 5.4813 rmse 2.3412 rse 0.0003
+mse 3.6405 rmse 1.9080 rse 0.0002
 --------------TARGET LEMA
-mse 0.3400 rmse 0.5831 rse 0.0002
+mse 0.2873 rmse 0.5360 rse 0.0001
 --------------TARGET LYTR
-mse 4.8075 rmse 2.1926 rse 0.0563
+mse 4.1065 rmse 2.0264 rse 0.0479
 --------------TARGET MEEL
-mse 0.0170 rmse 0.1302 rse 0.0133
+mse 0.0182 rmse 0.1351 rse 0.0144
 --------------TARGET MEPO
-mse 0.0007 rmse 0.0269 rse 0.0054
+mse 0.0004 rmse 0.0200 rse 0.0030
 --------------TARGET MESU
-mse 0.0278 rmse 0.1667 rse 0.0006
+mse 0.0293 rmse 0.1713 rse 0.0007
 --------------TARGET PAIN
-mse 0.1156 rmse 0.3399 rse 0.0005
+mse 0.0849 rmse 0.2914 rse 0.0004
 --------------TARGET PLCO
-mse 0.2394 rmse 0.4892 rse 0.0007
+mse 0.1741 rmse 0.4173 rse 0.0005
 --------------TARGET POMA
-mse 1.3252 rmse 1.1512 rse 0.0032
+mse 1.8251 rmse 1.3510 rse 0.0045
 --------------TARGET POMO
-mse 0.2191 rmse 0.4681 rse 0.0477
+mse 0.2762 rmse 0.5255 rse 0.0635
 --------------TARGET PUPA
-mse 1.5560 rmse 1.2474 rse 0.0183
+mse 1.8957 rmse 1.3768 rse 0.0224
 --------------TARGET RAPE
-mse 2.6783 rmse 1.6366 rse 0.1573
+mse 3.3669 rmse 1.8349 rse 0.2014
 --------------TARGET SASO
-mse 142.6098 rmse 11.9419 rse 0.4254
+mse 150.9756 rmse 12.2872 rse 0.4455
 --------------TARGET SCLA
 mse 2.8867 rmse 1.6990 rse 0.2173
 --------------TARGET SOAS
@@ -94,6 +83,6 @@ mse 1.4824 rmse 1.2175 rse 0.2281
 --------------TARGET SUSP
 mse 0.1177 rmse 0.3431 rse 0.2050
 Random Forest
-mse 0.3735 rmse 0.6111 rse 0.0040
+mse 0.6373 rmse 0.7983 rse 0.0067
 The best random forest has a max_features value of auto and n_estimators of 100.
 

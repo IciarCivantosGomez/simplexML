@@ -219,6 +219,10 @@ individuals_model_train = std_scaler_model.transform(individuals_model_train)
 X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
 y = individuals_train.individuals
 
+
+# Anyadido JGA para que el modelo tenga las mismas features que en AzureML
+X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
+
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 
 

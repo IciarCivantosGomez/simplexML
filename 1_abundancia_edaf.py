@@ -234,18 +234,26 @@ individuals_model_train = std_scaler_model.transform(individuals_model_train)
 X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
 y = individuals_train.individuals
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
+# Anyadido JGA para que el modelo tenga las mismas features que en AzureML
+X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
 
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 
 "Algoritmos y Evaluación"
 
 "ElasticNet"
+print("Elastic Net")
 
 elastic_model = ElasticNet(random_state=0)
 elastic_model.fit(X_train,y_train)
 predictions_elastic = elastic_model.predict(X_test)
 
 rmse_elastic = np.sqrt(metrics.mean_squared_error(y_test, predictions_elastic))
+
+mse_elastic = mean_squared_error(y_test,predictions_elastic)
+rse_elastic = rse.calc_rse(y_test,mse_elastic)
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_elastic,rmse_elastic,rse_elastic))
 
 "Random Forest"
 print("Random Forest")
