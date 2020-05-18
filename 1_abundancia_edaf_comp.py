@@ -4,20 +4,16 @@ import random
 import pandas as pd
 pd.set_option('display.max_colwidth', -1)
 import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(color_codes=True)
 
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV, ParameterGrid
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.model_selection import cross_validate
-from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_absolute_error
-import xgboost
+from imblearn.over_sampling import SMOTE, RandomOverSampler
 import rse
 verbose = False
 
@@ -35,10 +31,15 @@ num_cols = len(individuals_train.columns)
 print("This dataset has {0} rows and {1} columns".format(num_rows, num_cols))
 
 
-col_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+# col_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+#        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+#        'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present',
+#        'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+#        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
+#        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
+col_list = ['species', 'individuals', 'present',
        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
-       'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present',
-       'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+       'k', 'na', 'precip', 'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
 
@@ -54,19 +55,27 @@ le.fit(individuals_train[['species']])
 individuals_train[['species']] = le.transform(individuals_train[['species']])
 
 "Transformamos la variable plotID a numérica"
-le = LabelEncoder()
-le.fit(individuals_train[['plotID']])
-individuals_train[['plotID']] = le.transform(individuals_train[['plotID']])
+# le = LabelEncoder()
+# le.fit(individuals_train[['plotID']])
+# individuals_train[['plotID']] = le.transform(individuals_train[['plotID']])
 
-"Transformamos la variable subplot a numérica"
-le = LabelEncoder()
-le.fit(individuals_train[['subplot']])
-individuals_train[['subplot']] = le.transform(individuals_train[['subplot']])
+# "Transformamos la variable subplot a numérica"
+# le = LabelEncoder()
+# le.fit(individuals_train[['subplot']])
+# individuals_train[['subplot']] = le.transform(individuals_train[['subplot']])
 
 "Transformamos la variable present a numérica"
 le = LabelEncoder()
 le.fit(individuals_train[['present']])
 individuals_train[['present']] = le.transform(individuals_train[['present']])
+
+sm = SMOTE(random_state=42)
+individuals_train, y_res = sm.fit_resample(individuals_train[['species', 'individuals', 'present',
+       'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+       'k', 'na', 'precip', 'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+       'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
+       'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']], individuals_train[['present']])
+
 if verbose:
     print(individuals_train.dtypes)
 
@@ -84,7 +93,7 @@ if (verbose):
 "Estudiar qué variables toman siempre el mismo valor"
 
 variables_numericas = [index for index, value in zip(individuals_train.dtypes.index, individuals_train.dtypes.values) 
-                       if str(value) != 'object']
+                        if str(value) != 'object']
 
 variances = individuals_train[variables_numericas].var(axis=0)
 unique_values = []
@@ -115,57 +124,7 @@ for column in list(individuals_train):
     
 nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls']).sort_values('percentage_nulls',ascending=False)
 nulls_info_df
-'''
-"Estudio de correlaciones"
 
-variables_to_ignore = ['individuals']
-variables_study = [element for element in list(individuals_train) if element not in variables_to_ignore]
-
-correlation_matrix = individuals_train[variables_study].corr(method='spearman')
-
-figure_size = (18, 14)
-fig, ax = plt.subplots(figsize=figure_size)
-
-sns.heatmap(correlation_matrix, xticklabels=list(correlation_matrix), yticklabels=list(correlation_matrix),
-            annot=True, fmt='.1f', linewidths = 0.5, ax=ax)
-
-num_variables = len(correlation_matrix)
-correlation_value = 0.7
-correlated_variables = []
-
-for row in range(1,num_variables):
-    for col in range(0,row):
-        if abs(correlation_matrix.iloc[row,col]) >= correlation_value:
-            print('The variable {0} is correlated with the variable {1} with a factor of {2}.'.format(list(correlation_matrix)[row], list(correlation_matrix)[col], correlation_matrix.iloc[row,col]))
-            correlated_variables.append([list(correlation_matrix)[row], list(correlation_matrix)[col], correlation_matrix.iloc[row,col]])
-
-correlated_variables = correlated_variables[1:]
-correlated_variables = sorted(correlated_variables, key=lambda value: abs(value[-1]), reverse=True)
-correlated_variables
-
-"Correlacion con variable objetivo"
-
-columns_to_delete_correlation_target = []
-for element in correlated_variables:
-    if element[0] not in list(individuals_train) or element[1] not in list(individuals_train):
-        break
-    else:
-        first = individuals_train.individuals.corr(individuals_train[element[0]], method='spearman')
-        second = individuals_train.individuals.corr(individuals_train[element[1]], method='spearman')
-        if abs(first) > abs(second):
-            print('The variable {0} is more correlated with the objective variable "individuals".'.format(element[0]))
-            columns_to_delete_correlation_target.append(element[1])
-        else: 
-            print('The variable {0} is more correlated with the objective variable "individuals".'.format(element[1]))
-            columns_to_delete_correlation_target.append(element[0])
-
-columns_to_delete_correlation_target = list(set(columns_to_delete_correlation_target))
-individuals_train.drop(columns_to_delete_correlation_target, axis=1, inplace=True)
-
-num_rows = len(individuals_train)
-num_cols = len(individuals_train.columns)
-print("This dataset has {0} records and {1} columns".format(num_rows, num_cols))
-'''
 
 "Feature Importance"
 
@@ -219,9 +178,8 @@ individuals_model_train = std_scaler_model.transform(individuals_model_train)
 X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
 y = individuals_train.individuals
 
-
 # Anyadido JGA para que el modelo tenga las mismas features que en AzureML
-X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
+# X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 
@@ -233,12 +191,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
-rf = RandomForestRegressor(random_state= seed_value)
 
-param_grid = {'max_features':['auto', 'log2'], 'n_estimators':[100,150]}
-cross_val_rf = GridSearchCV(rf, param_grid, cv = 5)
-cross_val_rf.fit(X_train,y_train)
-predictions_rf = cross_val_rf.predict(X_test)
+regr = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
+regr.fit(X_train, y_train)
+predictions_rf = regr.predict(X_test)
 
 rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
 
@@ -247,13 +203,6 @@ rse_rf = rse.calc_rse(y_test,mse_rf)
 
 print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf,rse_rf))
 
-
-
-
-best_result_rf = cross_val_rf.best_params_
-
-(print("The best random forest has a max_features value of {0} and n_estimators of {1}."
-       .format( best_result_rf['max_features'], best_result_rf['n_estimators'])))
 
 
 "Gradient Boosting Trees"
@@ -280,26 +229,3 @@ best_result_gbt = cross_val_gbt.best_params_
 
 
 print()
-
-"XGBoost"
-
-
-#xgb = xgboost.XGBRegressor(colsample_bytree=0.8,
-#                 gamma=0.1,                 
-#                 learning_rate=0.07,
-#                 max_depth=5,
-#                 min_child_weight=10,
-#                 n_estimators=1000,                                                                    
-#                 reg_alpha=0.75,
-#                 reg_lambda=0.45,
-#                 subsample=0.6,
-#                 seed=42) 
-#
-#
-#xgb.fit(X_train,y_train)
-#predictions_xgb = xgb.predict(X_test)
-#
-#rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
-#
-#
-

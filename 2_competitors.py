@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
+from imblearn.over_sampling import SMOTE, RandomOverSampler
 
 import rse
 verbose = False
@@ -31,16 +32,27 @@ num_cols = len(conditions.columns)
 print("This dataset has {0} rows and {1} columns".format(num_rows, num_cols))
 
 
-col_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+# col_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+#        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+#        'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present',
+#        'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+#        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
+#        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
+
+# train_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+#        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+#        'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present']
+
+col_list = ['species', 'individuals',
        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
-       'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present',
+       'k', 'na', 'precip', 'present',
        'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
 
-train_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
+train_list = ['species', 'individuals', 
        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
-       'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present']
+       'k', 'na', 'precip', 'present']
 
 conditions = conditions[col_list]
 
@@ -53,20 +65,29 @@ le = LabelEncoder()
 le.fit(conditions[['species']])
 conditions[['species']] = le.transform(conditions[['species']])
 
-"Transformamos la variable plotID a numérica"
-le = LabelEncoder()
-le.fit(conditions[['plotID']])
-conditions[['plotID']] = le.transform(conditions[['plotID']])
+# "Transformamos la variable plotID a numérica"
+# le = LabelEncoder()
+# le.fit(conditions[['plotID']])
+# conditions[['plotID']] = le.transform(conditions[['plotID']])
 
-"Transformamos la variable subplot a numérica"
-le = LabelEncoder()
-le.fit(conditions[['subplot']])
-conditions[['subplot']] = le.transform(conditions[['subplot']])
+# "Transformamos la variable subplot a numérica"
+# le = LabelEncoder()
+# le.fit(conditions[['subplot']])
+# conditions[['subplot']] = le.transform(conditions[['subplot']])
 
 "Transformamos la variable present a numérica"
 le = LabelEncoder()
 le.fit(conditions[['present']])
 conditions[['present']] = le.transform(conditions[['present']])
+
+sm = SMOTE(random_state=42)
+conditions, y_res = sm.fit_resample(conditions[['species', 'individuals',
+       'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+       'k', 'na', 'precip', 'present',
+       'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+       'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
+       'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']], conditions[['present']])
+
 
 "Estandarizacion de los datos"
 
@@ -93,11 +114,11 @@ for i in range(0, len(features_to_pred)):
     X = pd.DataFrame(data = conditions_model_train, columns = train_list)
     y = conditions[variables_to_ignore]
     
-    X_train = X.iloc[0:29808]
-    y_train = y.iloc[0:29808]
+    X_train = X.iloc[11376::]
+    y_train = y.iloc[11376::]
     
-    X_test = X.iloc[29808::]
-    y_test = y.iloc[29808::]
+    X_test = X.iloc[0:11375]
+    y_test = y.iloc[0:11375]
     
         
     "Algoritmos y Evaluación"
@@ -117,19 +138,24 @@ for i in range(0, len(features_to_pred)):
     #print("RMSE: "+str(rmse_rf[variables_to_ignore]))
     print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf[variables_to_ignore],rse_rf))
 
+
+
+
 "Utilizamos los resultados para predecir individuals"
 
 features_to_pred = ['individuals']
 selected_features = [element for element in col_list if element not in features_to_pred]
 
-new_X = conditions[train_list].iloc[29808::].reset_index()
+new_X = conditions[train_list].iloc[0:11375].reset_index().drop(['index'], axis = 1)
 y_predictions = pd.DataFrame.from_dict(y_pred)
 
-X_individuals = new_X.join(y_predictions).drop(['index'], axis = 1)
-y_individuals = conditions[features_to_pred].iloc[29808::]
+
+X_individuals = new_X.join(y_predictions)[selected_features]
+y_individuals = conditions[features_to_pred].iloc[0:11375]
 
 # Anyadido JGA para que el modelo tenga las mismas features que en AzureML
-X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
+#X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
+
 
 X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_individuals, y_individuals, train_size= 0.8)
 
@@ -137,24 +163,17 @@ X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals
 print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
-rf = RandomForestRegressor(random_state= seed_value)
 
-param_grid = {'max_features':['auto', 'log2'], 'n_estimators':[100,150]}
-cross_val_rf = GridSearchCV(rf, param_grid, cv = 5)
-cross_val_rf.fit(X_train_individuals,y_train_individuals)
-predictions_rf = cross_val_rf.predict(X_test_individuals)
+rf = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
+rf.fit(X_train_individuals,y_train_individuals)
+predictions_rf = rf.predict(X_test_individuals)
+
 
 rmse_rf_final = np.sqrt(metrics.mean_squared_error(y_test_individuals, predictions_rf))
 mse_rf_final = mean_squared_error(y_test_individuals,predictions_rf)
 rse_rf_final = rse.calc_rse(predictions_rf,mse_rf_final)
 print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf_final,rmse_rf_final,rse_rf_final))
 
-
-
-best_result_rf = cross_val_rf.best_params_
-(print("The best random forest has a max_features value of {0} and n_estimators of {1}."
-       .format( best_result_rf['max_features'], best_result_rf['n_estimators'])))
-print()
 
 
 
