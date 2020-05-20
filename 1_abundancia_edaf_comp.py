@@ -182,7 +182,7 @@ y = individuals_train.individuals
 # X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
-
+print(X_train.columns)
 
 "Algoritmos y Evaluación"
 
