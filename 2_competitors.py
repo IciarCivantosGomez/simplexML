@@ -32,17 +32,6 @@ num_cols = len(conditions.columns)
 print("This dataset has {0} rows and {1} columns".format(num_rows, num_cols))
 
 
-# col_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
-#        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
-#        'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present',
-#        'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
-#        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
-#        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
-
-# train_list = ['year', 'species', 'individuals', 'plotID', 'x', 'y',
-#        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
-#        'k', 'na', 'plot', 'subplot', 'precip', 'sum_salinity', 'present']
-
 col_list = ['species', 'individuals',
        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
        'k', 'na', 'precip', 'present',
@@ -65,15 +54,6 @@ le = LabelEncoder()
 le.fit(conditions[['species']])
 conditions[['species']] = le.transform(conditions[['species']])
 
-# "Transformamos la variable plotID a numérica"
-# le = LabelEncoder()
-# le.fit(conditions[['plotID']])
-# conditions[['plotID']] = le.transform(conditions[['plotID']])
-
-# "Transformamos la variable subplot a numérica"
-# le = LabelEncoder()
-# le.fit(conditions[['subplot']])
-# conditions[['subplot']] = le.transform(conditions[['subplot']])
 
 "Transformamos la variable present a numérica"
 le = LabelEncoder()
@@ -152,9 +132,6 @@ y_predictions = pd.DataFrame.from_dict(y_pred)
 
 X_individuals = new_X.join(y_predictions)[selected_features]
 y_individuals = conditions[features_to_pred].iloc[0:11375]
-
-# Anyadido JGA para que el modelo tenga las mismas features que en AzureML
-#X = X.drop(['year','plotID','x','y','sum_salinity','plot','subplot','present'], axis=1)
 
 
 X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_individuals, y_individuals, train_size= 0.8)

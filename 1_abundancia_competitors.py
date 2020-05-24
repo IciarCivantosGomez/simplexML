@@ -16,7 +16,7 @@ from sklearn.model_selection import GridSearchCV, ParameterGrid
 from sklearn.model_selection import cross_validate
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_absolute_error
+from imblearn.over_sampling import SMOTE, RandomOverSampler
 import xgboost
 import rse
 
@@ -27,8 +27,9 @@ verbose = False
 
 print("Predictor solo con especies competidoras")
 print("========================================")
-individuals_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
-#individuals_test = pd.read_csv('datasets/competition_merged_dataset_2019.csv', sep=',')
+competitors_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
+environment_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
+individuals_train = environment_train.merge(competitors_train)
 
 num_rows = len(individuals_train)
 num_cols = len(individuals_train.columns)
@@ -38,7 +39,7 @@ print("This dataset has {0} rows and {1} columns".format(num_rows, num_cols))
 "Rename co3.x column to co3"
 #individuals_train.rename(columns={"co3.x": "co3"}, inplace = True)
 
-col_list = ['species','individuals','BEMA','CETE','CHFU','CHMI','COSQ','FRPU','HOMA','LEMA','LYTR','MEEL','MEPO','MESU','PAIN','PLCO','POMA','POMO','PUPA','RAPE','SASO','SCLA','SOAS','SPRU','SUSP']
+col_list = ['species','present','individuals','BEMA','CETE','CHFU','CHMI','COSQ','FRPU','HOMA','LEMA','LYTR','MEEL','MEPO','MESU','PAIN','PLCO','POMA','POMO','PUPA','RAPE','SASO','SCLA','SOAS','SPRU','SUSP']
 
 individuals_train = individuals_train[col_list]
 #individuals_test = individuals_test[col_list]
@@ -52,6 +53,13 @@ le = LabelEncoder()
 le.fit(individuals_train[['species']])
 individuals_train[['species']] = le.transform(individuals_train[['species']])
 
+le = LabelEncoder()
+le.fit(individuals_train[['present']])
+individuals_train[['present']] = le.transform(individuals_train[['present']])
+
+sm = SMOTE(random_state=42,sampling_strategy = {0: 28188, 1: 140940})
+individuals_train, y_res = sm.fit_resample(individuals_train[['species','individuals','BEMA','CETE','CHFU','CHMI','COSQ','FRPU','HOMA','LEMA','LYTR','MEEL','MEPO','MESU','PAIN','PLCO','POMA','POMO','PUPA','RAPE','SASO','SCLA','SOAS','SPRU','SUSP']], individuals_train[['present']])
+individuals_train = individuals_train.join(y_res)
 
 if verbose:
     print(individuals_train.dtypes)
@@ -68,99 +76,6 @@ num_rows_clean = len(individuals_train)
 if verbose:
     print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
 
-
-"Estudiar qué variables toman siempre el mismo valor"
-if verbose:
-    print("Estudiar qué variables toman siempre el mismo valor")
-
-variables_numericas = [index for index, value in zip(individuals_train.dtypes.index, individuals_train.dtypes.values) 
-                       if str(value) != 'object']
-
-variances = individuals_train[variables_numericas].var(axis=0)
-unique_values = []
-for element in variables_numericas:
-    unique_values.append(len(individuals_train[element].unique()))
-    
-data = []
-for variable, variance, unique_values in zip(variables_numericas, variances, unique_values):
-    data.append([variable, variance, unique_values])
-    
-variance_study = pd.DataFrame(data, columns=['variable', 'variance', 'unique_values']).sort_values(['unique_values','variance'], ascending=[True, True])
-if verbose:
-    print(variance_study)
-
-columns_to_delete = variance_study[variance_study.variance < 0.1].variable.tolist()
-
-individuals_train.drop(columns_to_delete, axis=1, inplace=True)
-#individuals_test.drop(columns_to_delete, axis=1, inplace=True)
-
-"Estudio de valores nulos"
-if verbose:
-    print("Estudio de valores nulos")
-
-num_rows = len(individuals_train)
-nulls_info = []
-
-for column in list(individuals_train):
-    
-    number_nulls = len(individuals_train[pd.isnull(individuals_train[column])])    
-    nulls_info.append([column,number_nulls*100/num_rows])    
-    
-nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls']).sort_values('percentage_nulls',ascending=False)
-nulls_info_df
-
-"Estudio de correlaciones"
-if verbose:
-    print("Estudio de correlaciones")
-
-variables_to_ignore = ['individuals']
-variables_study = [element for element in list(individuals_train) if element not in variables_to_ignore]
-
-correlation_matrix = individuals_train[variables_study].corr(method='spearman')
-
-#figure_size = (18, 14)
-#fig, ax = plt.subplots(figsize=figure_size)
-#sns.heatmap(correlation_matrix, xticklabels=list(correlation_matrix), yticklabels=list(correlation_matrix),
-#            annot=True, fmt='.1f', linewidths = 0.5, ax=ax)
-
-num_variables = len(correlation_matrix)
-correlation_value = 0.7
-correlated_variables = []
-
-for row in range(1,num_variables):
-    for col in range(0,row):
-        if abs(correlation_matrix.iloc[row,col]) >= correlation_value:
-            print('The variable {0} is correlated with the variable {1} with a factor of {2}.'.format(list(correlation_matrix)[row], list(correlation_matrix)[col], correlation_matrix.iloc[row,col]))
-            correlated_variables.append([list(correlation_matrix)[row], list(correlation_matrix)[col], correlation_matrix.iloc[row,col]])
-
-correlated_variables = correlated_variables[1:]
-correlated_variables = sorted(correlated_variables, key=lambda value: abs(value[-1]), reverse=True)
-correlated_variables
-
-"Correlacion con variable objetivo"
-
-columns_to_delete_correlation_target = []
-for element in correlated_variables:
-    if element[0] not in list(individuals_train) or element[1] not in list(individuals_train):
-        break
-    else:
-        first = individuals_train.individuals.corr(individuals_train[element[0]], method='spearman')
-        second = individuals_train.individuals.corr(individuals_train[element[1]], method='spearman')
-        if abs(first) > abs(second):
-            print('The variable {0} is more correlated with the objective variable "individuals".'.format(element[0]))
-            columns_to_delete_correlation_target.append(element[1])
-        else: 
-            print('The variable {0} is more correlated with the objective variable "individuals".'.format(element[1]))
-            columns_to_delete_correlation_target.append(element[0])
-
-columns_to_delete_correlation_target = list(set(columns_to_delete_correlation_target))
-individuals_train.drop(columns_to_delete_correlation_target, axis=1, inplace=True)
-#individuals_test.drop(columns_to_delete_correlation_target, axis=1, inplace=True)
-
-num_rows = len(individuals_train)
-num_cols = len(individuals_train.columns)
-if verbose:
-    print("This dataset has {0} records and {1} columns".format(num_rows, num_cols))
 
 "Feature Importance"
 
@@ -210,42 +125,17 @@ individuals_model_train = std_scaler_model.transform(individuals_model_train)
 
 "Division Train Test"
 
-X_train = pd.DataFrame(data = individuals_model_train, columns = selected_features)
-y_train = individuals_train.individuals
-#y_train = np.log(competition_train.fruit)
-#y_train = pd.Series([0 if np.isinf(i) else i for i in y_train])
+X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
+y = individuals_train.individuals
 
-#X_test = pd.DataFrame(data = individuals_model_test, columns = selected_features)
-#y_test = individuals_test.fruit
-#y_test = np.log(competition_test.fruit)
-#y_test = pd.Series([0 if np.isinf(i) else i for i in y_test])
-
-# X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
-# y = individuals_train.individuals
-
-
-
-# Anyadido JGA para que el modelo tenga las mismas features que en AzureML
-X = X.drop(['random_noise'], axis=1)
+#X = X.drop(['random_noise'], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 print(X_train.columns)
 
 "Algoritmos y Evaluación"
 
-"ElasticNet"
 
-print("ElasticNet")
-elastic_model = ElasticNet(random_state=0)
-elastic_model.fit(X_train,y_train)
-predictions_elastic = elastic_model.predict(X_test)
-
-mse_elastic = mean_squared_error(y_test,predictions_elastic)
-rmse_elastic = math.sqrt(mse_elastic/len(y_test))
-rse_elastic = rse.calc_rse(y_test,mse_elastic)
-rmse_elastic = np.sqrt(metrics.mean_squared_error(y_test, predictions_elastic))
-
-print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_elastic,rmse_elastic,rse_elastic))
 
 "Random Forest"
 
@@ -263,28 +153,4 @@ mse_rf = mean_squared_error(y_test,predictions_rf)
 rse_rf = rse.calc_rse(y_test,mse_rf)
 
 print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf,rse_rf))
-
-
-"Gradient Boosting Trees"
-print("Gradient Boosting Trees")
-
-gbt = GradientBoostingRegressor(random_state= seed_value)
-
-param_grid = {'learning_rate':[0.01,0.1], 'n_estimators':[150,250], 'max_depth':[7,8]}
-cross_val_gbt = GridSearchCV(gbt, param_grid, cv = 5)
-cross_val_gbt.fit(X_train,y_train)
-predictions_gbt = cross_val_gbt.predict(X_test)
-
-mse_gbt = mean_squared_error(y_test,predictions_gbt)
-rmse_gbt = math.sqrt(mse_gbt/len(y_test))
-rse_gbt = rse.calc_rse(y_test,mse_gbt)
-
-best_result_gbt = cross_val_gbt.best_params_
-
-(print("The best gbt has a n_estimators value of {0}, max_depth of {1} and learning_rate of {2}."
-       .format( best_result_gbt['n_estimators'], best_result_gbt['max_depth'], best_result_gbt['learning_rate'])))
-
-print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_gbt,rmse_gbt,rse_gbt))
-print()
-
 
