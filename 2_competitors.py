@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May 24 13:17:02 2020
+
+@author: iciar
+"""
+
 import pandas as pd
 import random
 pd.set_option('display.max_colwidth', -1)
@@ -84,6 +91,12 @@ features_to_pred = ['BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEM
        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']
 
+X = pd.DataFrame(data = conditions_model_train, columns = train_list)
+y = conditions[features_to_pred]
+
+X_train_species, X_test_species, y_train_species, y_test_species = train_test_split(X, y, train_size= 0.8)
+
+
 for i in range(0, len(features_to_pred)):
 
     variables_to_ignore = features_to_pred[i]
@@ -91,14 +104,12 @@ for i in range(0, len(features_to_pred)):
     
     "Division Train Test"
     
-    X = pd.DataFrame(data = conditions_model_train, columns = train_list)
-    y = conditions[variables_to_ignore]
     
-    X_train = X.iloc[11376::]
-    y_train = y.iloc[11376::]
+    X_train = X_train_species
+    y_train = y_train_species[variables_to_ignore]
     
-    X_test = X.iloc[0:11375]
-    y_test = y.iloc[0:11375]
+    X_test = X_test_species
+    y_test = y_test_species[variables_to_ignore]
     
         
     "Algoritmos y Evaluación"
@@ -126,15 +137,27 @@ for i in range(0, len(features_to_pred)):
 features_to_pred = ['individuals']
 selected_features = [element for element in col_list if element not in features_to_pred]
 
-new_X = conditions[train_list].iloc[0:11375].reset_index().drop(['index'], axis = 1)
+new_X = X_test_species.reset_index().drop(['index'], axis = 1)
 y_predictions = pd.DataFrame.from_dict(y_pred)
-
-
 X_individuals = new_X.join(y_predictions)[selected_features]
-y_individuals = conditions[features_to_pred].iloc[0:11375]
 
+y_individuals = conditions[features_to_pred].iloc[y_test_species.index].reset_index().drop(['index'], axis = 1)
 
-X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_individuals, y_individuals, train_size= 0.8)
+data = X_individuals.join(y_individuals)
+
+sm = SMOTE(random_state=42,sampling_strategy = {-1: 5710, 1: 28550})
+data, y_res = sm.fit_resample(data[['species', 'individuals',
+       'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
+       'k', 'na', 'precip',
+       'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
+       'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
+       'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']], data[['present']])
+data = data.join(y_res)
+
+X_ind = data[selected_features]
+y_ind = data['individuals']
+
+X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_ind, y_ind, train_size= 0.8)
 
 "Random Forest"
 print("Random Forest")

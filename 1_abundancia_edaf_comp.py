@@ -70,60 +70,61 @@ le.fit(individuals_train[['present']])
 individuals_train[['present']] = le.transform(individuals_train[['present']])
 
 sm = SMOTE(random_state=42)
-individuals_train, y_res = sm.fit_resample(individuals_train[['species', 'individuals', 'present',
+individuals_train, y_res = sm.fit_resample(individuals_train[['species', 'individuals',
        'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
        'k', 'na', 'precip', 'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
        'MEEL', 'MEPO', 'MESU', 'PAIN', 'PLCO', 'POMA', 'POMO', 'PUPA', 'RAPE',
        'SASO', 'SCLA', 'SOAS', 'SPRU', 'SUSP']], individuals_train[['present']])
+individuals_train = individuals_train.join(y_res)
 
 if verbose:
     print(individuals_train.dtypes)
 
-"Ver si hay registros duplicados"
+# "Ver si hay registros duplicados"
 
-num_rows = len(individuals_train)
-num_cols = len(individuals_train.columns)
+# num_rows = len(individuals_train)
+# num_cols = len(individuals_train.columns)
 
-individuals_train = individuals_train.drop_duplicates()
-num_rows_clean = len(individuals_train)
-if (verbose):
-    print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
+# individuals_train = individuals_train.drop_duplicates()
+# num_rows_clean = len(individuals_train)
+# if (verbose):
+#     print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
 
 
-"Estudiar qué variables toman siempre el mismo valor"
+# "Estudiar qué variables toman siempre el mismo valor"
 
-variables_numericas = [index for index, value in zip(individuals_train.dtypes.index, individuals_train.dtypes.values) 
-                        if str(value) != 'object']
+# variables_numericas = [index for index, value in zip(individuals_train.dtypes.index, individuals_train.dtypes.values) 
+#                         if str(value) != 'object']
 
-variances = individuals_train[variables_numericas].var(axis=0)
-unique_values = []
-for element in variables_numericas:
-    unique_values.append(len(individuals_train[element].unique()))
+# variances = individuals_train[variables_numericas].var(axis=0)
+# unique_values = []
+# for element in variables_numericas:
+#     unique_values.append(len(individuals_train[element].unique()))
     
-data = []
-for variable, variance, unique_values in zip(variables_numericas, variances, unique_values):
-    data.append([variable, variance, unique_values])
+# data = []
+# for variable, variance, unique_values in zip(variables_numericas, variances, unique_values):
+#     data.append([variable, variance, unique_values])
     
-variance_study = pd.DataFrame(data, columns=['variable', 'variance', 'unique_values']).sort_values(['unique_values','variance'], ascending=[True, True])
-if (verbose):
-    print(variance_study)
+# variance_study = pd.DataFrame(data, columns=['variable', 'variance', 'unique_values']).sort_values(['unique_values','variance'], ascending=[True, True])
+# if (verbose):
+#     print(variance_study)
 
-columns_to_delete = variance_study[variance_study.variance < 0.1].variable.tolist()
+# columns_to_delete = variance_study[variance_study.variance < 0.1].variable.tolist()
 
-individuals_train.drop(columns_to_delete, axis=1, inplace=True)
+# individuals_train.drop(columns_to_delete, axis=1, inplace=True)
 
-"Estudio de valores nulos"
+# "Estudio de valores nulos"
 
-num_rows = len(individuals_train)
-nulls_info = []
+# num_rows = len(individuals_train)
+# nulls_info = []
 
-for column in list(individuals_train):
+# for column in list(individuals_train):
     
-    number_nulls = len(individuals_train[pd.isnull(individuals_train[column])])    
-    nulls_info.append([column,number_nulls*100/num_rows])    
+#     number_nulls = len(individuals_train[pd.isnull(individuals_train[column])])    
+#     nulls_info.append([column,number_nulls*100/num_rows])    
     
-nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls']).sort_values('percentage_nulls',ascending=False)
-nulls_info_df
+# nulls_info_df = pd.DataFrame(nulls_info, columns=['variable', 'percentage_nulls']).sort_values('percentage_nulls',ascending=False)
+# nulls_info_df
 
 
 "Feature Importance"
