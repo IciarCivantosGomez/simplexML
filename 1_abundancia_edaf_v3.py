@@ -1,9 +1,15 @@
+"""
+Created on Sun Aug  9 11:37:50 2020
+@author: Iciar Civantos
+This script builds the individuals predictor using weather and soil data
+"""
+
 import random
 
 import pandas as pd
 pd.set_option('display.max_colwidth', -1)
 import numpy as np
-from imblearn.over_sampling import SMOTE, SVMSMOTE
+from imblearn.over_sampling import SMOTE
 import seaborn as sns
 sns.set(color_codes=True)
 
@@ -14,12 +20,23 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import mean_squared_error
 
-
+import sys
+import config as cf
 import rse
-verbose = False
+verbose = True
 
-print("Estimacion solo con parametros medioambientales")
-print("===============================================")
+if (len(sys.argv)>2):
+    print("ERROR. Usage: 1_abundancia_edaf.py [present_percentage]")
+    exit()
+if (len(sys.argv) ==1):
+    smote_yn = 'n'
+else:
+    perc_0s = float(sys.argv[1])
+    smote_0s = round(perc_0s/100,2)
+    smote_yn = 'y'
+
+print("Predictor with environmental data only")
+print("=======================================")
 
 individuals_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
 
@@ -33,16 +50,6 @@ col_list.append('present')
 individuals_train = individuals_train[col_list]
 
 individuals_types = individuals_train.dtypes
-
-"Parámetros Random Forest"
-
-# Number of trees in random forest
-n_estimators = [100, 150]
-# Number of features to consider at every split
-max_features = ['auto']
-#Grid Search
-random_grid = {'n_estimators': n_estimators,
-           'max_features': max_features}
 
 "Data Wrangling"
 
@@ -59,31 +66,37 @@ individuals_train[['present']] = le.transform(individuals_train[['present']])
 perc_0s = round(len(np.where(individuals_train[['present']] == 0)[0])/num_rows * 100,2)
 perc_1s = round(len(np.where(individuals_train[['present']] == 1)[0])/num_rows * 100,2)
 
-print("===============================================")
-print("Proporción inicial especies presentes: "+str(perc_0s)+"% de 0s")
-print(" y "+str(perc_1s)+"% de 1s")
-print("===============================================")
 
-print("===============================================")
-smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
+# print("===============================================")
+# smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
 
 if smote_yn == 'y':
-    print("Inserte nuevo porcentaje")
-    perc_0s = float(input("Introduzca porcentaje de 1s: "))
+    # print("Inserte nuevo porcentaje")
+    # perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
-    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
     individuals_train, y_res = sm.fit_resample(individuals_train[base_list], individuals_train[['present']])
     individuals_train = individuals_train.join(y_res)
     
 else:
     print("===============================================")
-    print("No se aplicará SMOTE")
+    print("No SMOTE balancing")
     print("===============================================")
 
 if verbose:
     print(individuals_train.dtypes)
+
+"Parámetros Random Forest"
+
+# Number of trees in random forest
+n_estimators = [100, 150]
+# Number of features to consider at every split
+max_features = ['auto']
+#Grid Search
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
+
 
 
 "Feature Importance"

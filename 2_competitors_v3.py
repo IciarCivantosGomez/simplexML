@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun May 24 13:17:02 2020
-
 @author: iciar
+Two-step predictor
 """
 
 import pandas as pd
@@ -20,10 +20,22 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.metrics import mean_squared_error
 from imblearn.over_sampling import SMOTE, SVMSMOTE
 
+import sys
+import config as cf
 import rse
-verbose = False
+# verbose = cf.verbose
 
-print("Predictor en dos pasos")
+if (len(sys.argv)>2):
+    print("ERROR. Usage: 2_competitors_v3.py [present_percentage]")
+    exit()
+if (len(sys.argv) ==1):
+    smote_yn = 'n'
+else:
+    perc_0s = float(sys.argv[1])
+    smote_0s = round(perc_0s/100,2)
+    smote_yn = 'y'
+
+print("Two-step predictor")
 print("======================")
 
 environment_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
@@ -71,20 +83,20 @@ perc_0s = round(len(np.where(conditions[['present']] == 0)[0])/num_rows * 100,2)
 perc_1s = round(len(np.where(conditions[['present']] == 1)[0])/num_rows * 100,2)
 
 print("===============================================")
-print("Proporción inicial especies presentes: "+str(perc_0s)+"% de 0s")
-print(" y "+str(perc_1s)+"% de 1s")
+print("Original proportion of cases: "+str(perc_0s)+"% of 0s"+\
+      " and "+str(perc_1s)+"% of 1s")
 print("===============================================")
 
-print("===============================================")
-smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
+
+# print("===============================================")
+# smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
 
 if smote_yn == 'y':
-    print("Inserte nuevo porcentaje")
-    perc_0s = float(input("Introduzca porcentaje de 1s: "))
+    # print("Inserte nuevo porcentaje")
+    # perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
-    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
     conditions, y_res = sm.fit_resample(conditions[['species', 'individuals',
         'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
         'k', 'na', 'precip',
@@ -119,9 +131,7 @@ X = pd.DataFrame(data = conditions_model_train, columns = train_list)
 X[['present']] = conditions[['present']]
 y = conditions[features_to_pred]
 
-X_train_species, X_test_species, y_train_species, y_test_species = train_test_split(X, y, train_size= 0.8, random_state = 0)
-
-
+X_train_species, X_test_species, y_train_species, y_test_species = train_test_split(X, y, train_size= 0.8)
 "Parámetros Random Forest"
 
 # Number of trees in random forest
@@ -200,17 +210,22 @@ y_ind = data['individuals']
 X_train_individuals, X_test_individuals, y_train_individuals, y_test_individuals = train_test_split(X_ind, y_ind, train_size= 0.8)
 
 "Random Forest"
-print("Random Forest")
-seed_value = 4
-random.seed(seed_value)
+
+"Random Forest"
+# print("Random Forest")
+# seed_value = 4
+# random.seed(seed_value)
+
+# rf = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
+# rf.fit(X_train_individuals,y_train_individuals)
+# predictions_rf = rf.predict(X_test_individuals)
 
 rf = RandomForestRegressor(n_jobs = -1)
-# rf = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
 rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, cv = 7, verbose=2, n_jobs = -1)
 
-rf_random.fit(X_train,y_train)
+rf_random.fit(X_train_individuals,y_train_individuals)
 print(rf_random.best_params_)
-predictions_rf = rf_random.best_estimator_.predict(X_test)
+predictions_rf = rf_random.best_estimator_.predict(X_test_individuals)
 
 rmse_rf_final = np.sqrt(metrics.mean_squared_error(y_test_individuals, predictions_rf))
 mse_rf_final = mean_squared_error(y_test_individuals,predictions_rf)

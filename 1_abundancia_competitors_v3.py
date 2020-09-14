@@ -1,3 +1,10 @@
+
+"""
+Created on Sun Aug  9 11:37:50 2020
+@author: Iciar Civantos
+This script builds the individuals predictor using species competitors abundance
+"""
+
 import random
 
 import pandas as pd
@@ -11,21 +18,34 @@ sns.set(color_codes=True)
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_validate, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV, ParameterGrid
+from sklearn.model_selection import cross_validate
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error
-from imblearn.over_sampling import SMOTE, RandomOverSampler, SVMSMOTE
+from imblearn.over_sampling import SMOTE, RandomOverSampler, ADASYN
 import xgboost
+import config as cf
 import rse
-
+import sys
 import warnings
 warnings.filterwarnings("ignore")
 
-verbose = False
+# verbose = cf.verbose
+verbose = True
 
-print("Predictor solo con especies competidoras")
-print("========================================")
+if (len(sys.argv)>2):
+    print("ERROR. Usage: 1_abundancia_competitors.py [present_percentage]")
+    exit()
+if (len(sys.argv) ==1):
+    smote_yn = 'n'
+else:
+    perc_0s = float(sys.argv[1])
+    smote_0s = round(perc_0s/100,2)
+    smote_yn = 'y'
+
+print("Predictor with competitor species only")
+print("=======================================")
 competitors_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
 environment_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
 individuals_train = environment_train.merge(competitors_train)
@@ -39,16 +59,6 @@ col_list = ['species','present','individuals','BEMA','CETE','CHFU','CHMI','COSQ'
 
 individuals_train = individuals_train[col_list]
 individuals_types = individuals_train.dtypes
-
-"Parámetros Random Forest"
-
-# Number of trees in random forest
-n_estimators = [100, 150]
-# Number of features to consider at every split
-max_features = ['auto']
-#Grid Search
-random_grid = {'n_estimators': n_estimators,
-           'max_features': max_features}
 
 "Data Wrangling"
 
@@ -65,26 +75,25 @@ perc_0s = round(len(np.where(individuals_train[['present']] == 0)[0])/num_rows *
 perc_1s = round(len(np.where(individuals_train[['present']] == 1)[0])/num_rows * 100,2)
 
 print("===============================================")
-print("Proporción inicial especies presentes: "+str(perc_0s)+"% de 0s")
-print(" y "+str(perc_1s)+"% de 1s")
+print("Original proportion of cases: "+str(perc_0s)+"% of 0s"+\
+      " and "+str(perc_1s)+"% of 1s")
 print("===============================================")
 
-print("===============================================")
-smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
+# print("===============================================")
+# smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
 
 if smote_yn == 'y':
-    print("Inserte nuevo porcentaje")
-    perc_0s = float(input("Introduzca porcentaje de 1s: "))
+    # print("Inserte nuevo porcentaje")
+    # perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
-    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
     individuals_train, y_res = sm.fit_resample(individuals_train[['species','individuals','BEMA','CETE','CHFU','CHMI','COSQ','FRPU','HOMA','LEMA','LYTR','MEEL','MEPO','MESU','PAIN','PLCO','POMA','POMO','PUPA','RAPE','SASO','SCLA','SOAS','SPRU','SUSP']], individuals_train[['present']])
     individuals_train = individuals_train.join(y_res)
     
 else:
     print("===============================================")
-    print("No se aplicará SMOTE")
+    print("No SMOTE balancing")
     print("===============================================")
 
 if verbose:
@@ -101,6 +110,18 @@ individuals_train = individuals_train.drop_duplicates()
 num_rows_clean = len(individuals_train)
 if verbose:
     print("In this dataset there were {} repeated records".format(num_rows - num_rows_clean))
+
+
+
+"Parámetros Random Forest"
+
+# Number of trees in random forest
+n_estimators = [100, 150]
+# Number of features to consider at every split
+max_features = ['auto']
+#Grid Search
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
 
 
 "Feature Importance"

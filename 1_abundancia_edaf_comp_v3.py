@@ -1,4 +1,9 @@
-
+"""
+Created on Sun Aug  9 11:37:50 2020
+@author: Iciar Civantos
+This script builds the individuals predictor using both competitors
+and environmental (weather and soil) data
+"""
 import random
 
 import pandas as pd
@@ -13,12 +18,25 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import mean_squared_error
-from imblearn.over_sampling import SMOTE, SVMSMOTE
+from imblearn.over_sampling import SMOTE, ADASYN
+import sys
+import config as cf
 import rse
 verbose = False
 
-print("Estimacion con competidores y parametros medioambientales")
-print("=========================================================")
+if (len(sys.argv)>2):
+    print("ERROR. Usage: 1_abundancia_edaf_comp_v3.py [present_percentage]")
+    exit()
+if (len(sys.argv) ==1):
+    smote_yn = 'n'
+else:
+    perc_0s = float(sys.argv[1])
+    smote_0s = round(perc_0s/100,2)
+    smote_yn = 'y'
+
+print("Predictor with environmental and competition data")
+print("=================================================")
+
 
 environment_train = pd.read_csv('datasets/abund_merged_dataset_onlyenvironment.csv', sep=',')
 competitors_train = pd.read_csv('datasets/abund_merged_dataset_onlycompetitors.csv', sep=',')
@@ -40,16 +58,6 @@ col_list = ['species', 'individuals', 'present',
 individuals_train = individuals_train[col_list]
 individuals_types = individuals_train.dtypes
 
-"Parámetros Random Forest"
-
-# Number of trees in random forest
-n_estimators = [100, 150]
-# Number of features to consider at every split
-max_features = ['auto']
-#Grid Search
-random_grid = {'n_estimators': n_estimators,
-           'max_features': max_features}
-
 "Data Wrangling"
 
 "Transformamos la variable species a numérica"
@@ -69,20 +77,20 @@ perc_0s = round(len(np.where(individuals_train[['present']] == 0)[0])/num_rows *
 perc_1s = round(len(np.where(individuals_train[['present']] == 1)[0])/num_rows * 100,2)
 
 print("===============================================")
-print("Proporción inicial especies presentes: "+str(perc_0s)+"% de 0s")
-print(" y "+str(perc_1s)+"% de 1s")
+print("Original proportion of cases: "+str(perc_0s)+"% of 0s"+\
+      " and "+str(perc_1s)+"% of 1s")
 print("===============================================")
 
-print("===============================================")
-smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
+
+# print("===============================================")
+# smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
 
 if smote_yn == 'y':
-    print("Inserte nuevo porcentaje")
-    perc_0s = float(input("Introduzca porcentaje de 1s: "))
+    # print("Inserte nuevo porcentaje")
+    # perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
-    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
     individuals_train, y_res = sm.fit_resample(individuals_train[['species', 'individuals',
         'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
         'k', 'na', 'precip', 'BEMA', 'CETE', 'CHFU', 'CHMI', 'COSQ', 'FRPU', 'HOMA', 'LEMA', 'LYTR',
@@ -92,12 +100,22 @@ if smote_yn == 'y':
     
 else:
     print("===============================================")
-    print("No se aplicará SMOTE")
+    print("No SMOTE balancing")
     print("===============================================")
-
 
 if verbose:
     print(individuals_train.dtypes)
+
+
+"Parámetros Random Forest"
+
+# Number of trees in random forest
+n_estimators = [100, 150]
+# Number of features to consider at every split
+max_features = ['auto']
+#Grid Search
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
 
 
 "Feature Importance"
