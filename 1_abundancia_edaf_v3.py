@@ -3,14 +3,14 @@ import random
 import pandas as pd
 pd.set_option('display.max_colwidth', -1)
 import numpy as np
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, SVMSMOTE
 import seaborn as sns
 sns.set(color_codes=True)
 
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import mean_squared_error
 
@@ -33,6 +33,16 @@ col_list.append('present')
 individuals_train = individuals_train[col_list]
 
 individuals_types = individuals_train.dtypes
+
+"Parámetros Random Forest"
+
+# Number of trees in random forest
+n_estimators = [100, 150]
+# Number of features to consider at every split
+max_features = ['auto']
+#Grid Search
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
 
 "Data Wrangling"
 
@@ -62,7 +72,8 @@ if smote_yn == 'y':
     perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
+    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
     individuals_train, y_res = sm.fit_resample(individuals_train[base_list], individuals_train[['present']])
     individuals_train = individuals_train.join(y_res)
     
@@ -137,9 +148,13 @@ print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
 
-regr = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
-regr.fit(X_train, y_train)
-predictions_rf = regr.predict(X_test)
+regr = RandomForestRegressor( n_jobs = -1)
+# regr = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
+regr_random = RandomizedSearchCV(estimator = regr, param_distributions = random_grid, cv = 7, verbose=2, n_jobs = -1)
+
+regr_random.fit(X_train,y_train)
+print(regr_random.best_params_)
+predictions_rf = regr_random.best_estimator_.predict(X_test)
 
 rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
 

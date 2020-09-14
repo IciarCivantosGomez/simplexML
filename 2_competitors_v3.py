@@ -16,7 +16,7 @@ sns.set(color_codes=True)
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.metrics import mean_squared_error
 from imblearn.over_sampling import SMOTE, SVMSMOTE
 
@@ -83,7 +83,8 @@ if smote_yn == 'y':
     perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
-    sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
+    # sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
+    sm = SVMSMOTE(random_state=42,sampling_strategy = smote_0s)
     conditions, y_res = sm.fit_resample(conditions[['species', 'individuals',
         'ph', 'salinity', 'cl', 'co3', 'c', 'mo', 'n', 'cn', 'p', 'ca', 'mg',
         'k', 'na', 'precip',
@@ -118,7 +119,19 @@ X = pd.DataFrame(data = conditions_model_train, columns = train_list)
 X[['present']] = conditions[['present']]
 y = conditions[features_to_pred]
 
-X_train_species, X_test_species, y_train_species, y_test_species = train_test_split(X, y, train_size= 0.8)
+X_train_species, X_test_species, y_train_species, y_test_species = train_test_split(X, y, train_size= 0.8, random_state = 0)
+
+
+"Parámetros Random Forest"
+
+# Number of trees in random forest
+n_estimators = [100,150]
+# Number of features to consider at every split
+max_features = ['auto']
+#Grid Search
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
+
 
 
 for i in range(0, len(features_to_pred)):
@@ -139,12 +152,13 @@ for i in range(0, len(features_to_pred)):
     "Algoritmos y Evaluación"
     
     "Random Forest"
-
-
-    rf = RandomForestRegressor(n_jobs = -1)
     
-    rf.fit(X_train,y_train)
-    predictions_rf = rf.predict(X_test)
+    rf = RandomForestRegressor(n_jobs = -1)
+    rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, cv = 7, verbose=2, n_jobs = -1)
+    
+    rf_random.fit(X_train,y_train)
+    print(rf_random.best_params_)
+    predictions_rf = rf_random.best_estimator_.predict(X_test)
     
     y_pred[variables_to_ignore] = predictions_rf
     rmse_rf[variables_to_ignore] = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
@@ -190,10 +204,13 @@ print("Random Forest")
 seed_value = 4
 random.seed(seed_value)
 
-rf = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
-rf.fit(X_train_individuals,y_train_individuals)
-predictions_rf = rf.predict(X_test_individuals)
+rf = RandomForestRegressor(n_jobs = -1)
+# rf = RandomForestRegressor(random_state= seed_value, n_jobs = -1, n_estimators = 150)
+rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, cv = 7, verbose=2, n_jobs = -1)
 
+rf_random.fit(X_train,y_train)
+print(rf_random.best_params_)
+predictions_rf = rf_random.best_estimator_.predict(X_test)
 
 rmse_rf_final = np.sqrt(metrics.mean_squared_error(y_test_individuals, predictions_rf))
 mse_rf_final = mean_squared_error(y_test_individuals,predictions_rf)
