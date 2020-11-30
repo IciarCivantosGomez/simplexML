@@ -1,8 +1,8 @@
 """
-Created on Sun Aug  9 11:37:50 2020
-@author: Iciar Civantos
-This script builds the individuals predictor using both competitors
-and environmental (weather and soil) data
+This script uses information on abiotic and biotic components (number of individuals of other species
+also present in the subplot) to predict the number
+of individuals that will appear in a certain subplot.
+
 """
 import random
 
@@ -14,14 +14,17 @@ sns.set(color_codes=True)
 
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import mean_squared_error
-from imblearn.over_sampling import SMOTE, ADASYN
+from imblearn.over_sampling import SMOTE
 import sys
 import config as cf
 import rse
+import xgboost
+
 verbose = False
 
 if (len(sys.argv)>2):
@@ -34,6 +37,19 @@ else:
     smote_0s = round(perc_0s/100,2)
     smote_yn = 'y'
 
+
+"""
+Since we are going to work with abiotic and biotic components, both datasets will be 
+loaded and both are merged using the index as a joining column. 
+There are some columns in the datasets that will not be used for prediction tasks. 
+These are: year, month, day, plotID, x, y, subplot. In addition, there are duplicate 
+columns in both datasets. For this reason a selection is made of the variables that 
+will be used to train the model.
+
+These variables are the ones included in col_list
+"""
+
+print("=================================================")
 print("Predictor with environmental and competition data")
 print("=================================================")
 
@@ -60,34 +76,30 @@ individuals_types = individuals_train.dtypes
 
 "Data Wrangling"
 
-"Transformamos la variable species a numérica"
+"Species feature is coded as numeric"
 le = LabelEncoder()
 le.fit(individuals_train[['species']])
 individuals_train[['species']] = le.transform(individuals_train[['species']])
 
 
-"Transformamos la variable present a numérica"
+"Present feature is coded as numeric"
 le = LabelEncoder()
 le.fit(individuals_train[['present']])
 individuals_train[['present']] = le.transform(individuals_train[['present']])
 
+"""
+Present feature indicates whether the number of individuals in that field is greater than 0 (True) or not.
+There is 25% of the data in which present is True, that is, only in 25% of the rows the
+number of individuals is> 0. It was proposed to do a SMOTE to balance the dataset, 
+but the results worsened, what was discarded.
 
+"""
 
 perc_0s = round(len(np.where(individuals_train[['present']] == 0)[0])/num_rows * 100,2)
 perc_1s = round(len(np.where(individuals_train[['present']] == 1)[0])/num_rows * 100,2)
 
-print("===============================================")
-print("Original proportion of cases: "+str(perc_0s)+"% of 0s"+\
-      " and "+str(perc_1s)+"% of 1s")
-print("===============================================")
-
-
-# print("===============================================")
-# smote_yn = str(input("¿Desea incrementar el %?(y/n): "))
 
 if smote_yn == 'y':
-    # print("Inserte nuevo porcentaje")
-    # perc_0s = float(input("Introduzca porcentaje de 1s: "))
     smote_0s = round(perc_0s/100,2)
     
     sm = SMOTE(random_state=42,sampling_strategy = smote_0s)
@@ -107,15 +119,31 @@ if verbose:
     print(individuals_train.dtypes)
 
 
-"Parámetros Random Forest"
 
-# Number of trees in random forest
-n_estimators = [100, 150]
-# Number of features to consider at every split
-max_features = ['auto']
-#Grid Search
-random_grid = {'n_estimators': n_estimators,
-           'max_features': max_features}
+"""
+The reduction of dimensionality was also studied using a feature selection technique. 
+It consists of introducing a random noise variable to later analyze which variables 
+in my dataset provide more information than that random noise. In this case, starting 
+from an initial set of 40 variables, the algorithm selected as the most important:
+- 0	PAIN	0.1993726098053827
+- 1	present	0.17199974018884817
+- 2	species	0.15816533700741336
+- 3	HOMA	0.0827913900673997
+- 4	precip	0.07475141474783535
+- 5	LEMA	0.03448362128281919
+- 6	CHFU	0.026717495138886056
+- 7	POMA	0.025132994728885853
+- 8	SASO	0.02208463009866737
+- 9	co3	0.016149319067118327
+
+This subset of variables contains abiotic components that were already identified as 
+those variables that contributed more information to the prediction of individuals 
+in the 1_abundancia_edaf model. But certain species also stand out. After making the 
+prediction using only these variables, it has been confirmed that they do not provide 
+better results given the nature of the dataset, so dimensionality reduction was
+ not considered.
+
+"""
 
 
 "Feature Importance"
@@ -150,8 +178,17 @@ selected_features = feature_importance.index[selected_features].tolist()
 
 feature_importance.reset_index(inplace = True)
 
+"""
+Since dimensionality reduction was ruled out, all variables will be used to train the model. 
+The individuals variable is the one we want to predict, it is the number of individuals 
+that will appear in a subplot, depending on the abiotic and biotic conditions.
 
-"Estandarizacion de los datos"
+For the train and test separation, in this case a random split is used 
+(in another script some years are used as train and the last year as test).
+"""
+
+
+"Standarization"
 
 variables_to_ignore = ['individuals']
 selected_features = [element for element in list(individuals_train) if element not in variables_to_ignore]
@@ -165,7 +202,7 @@ individuals_model_train = std_scaler_model.transform(individuals_model_train)
 
 
 
-"Division Train Test"
+"Train Test Split"
 
 X = pd.DataFrame(data = individuals_model_train, columns = selected_features)
 y = individuals_train.individuals
@@ -173,11 +210,29 @@ y = individuals_train.individuals
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size= 0.8)
 print(X_train.columns)
 
-"Algoritmos y Evaluación"
+"Algorithms and Evaluation"
+
+"Linear Regression"
+
+reg = LinearRegression()
+reg.fit(X_train,y_train)
+
+predictions_lr = reg.predict(X_test)
+
+rmse_lr = np.sqrt(metrics.mean_squared_error(y_test, predictions_lr))
+mse_lr = mean_squared_error(y_test,predictions_lr)
+rse_lr = rse.calc_rse(y_test,mse_lr)
+
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_lr,rmse_lr,rse_lr))
+
 
 "Random Forest"
 
-print("Random Forest")
+n_estimators = [100, 150]
+max_features = ['auto']
+random_grid = {'n_estimators': n_estimators,
+           'max_features': max_features}
+
 seed_value = 4
 random.seed(seed_value)
 
@@ -187,13 +242,25 @@ regr = RandomForestRegressor( n_jobs = -1)
 regr_random = RandomizedSearchCV(estimator = regr, param_distributions = random_grid, cv = 7, verbose=2, n_jobs = -1)
 
 regr_random.fit(X_train,y_train)
-print(regr_random.best_params_)
 predictions_rf = regr_random.best_estimator_.predict(X_test)
 
 
 rmse_rf = np.sqrt(metrics.mean_squared_error(y_test, predictions_rf))
-
 mse_rf = mean_squared_error(y_test,predictions_rf)
 rse_rf = rse.calc_rse(y_test,mse_rf)
 
 print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_rf,rmse_rf,rse_rf))
+
+"XGBoost Regressor"
+
+
+xgb = xgboost.XGBRegressor()
+xgb.fit(X_train,y_train)
+
+predictions_xgb = xgb.predict(X_test)
+
+rmse_xgb = np.sqrt(metrics.mean_squared_error(y_test, predictions_xgb))
+mse_xgb = mean_squared_error(y_test,predictions_xgb)
+rse_xgb = rse.calc_rse(y_test,mse_xgb)
+
+print("mse {:.4f} rmse {:.4f} rse {:.4f}".format(mse_xgb,rmse_xgb,rse_xgb))
